@@ -83,3 +83,40 @@ export function legend(el, families) {
 
 export const escapeHTML = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// ---- Top authors filter (shared by both dataviz pages).
+// Authors ranked by the sum of `key` over `rows`; the selected author stays listed.
+export function topAuthors(rows, key, n = 10, selected = null) {
+  const by = new Map();
+  for (const d of rows) {
+    if (!d.auteur) continue;
+    const a = by.get(d.auteur) || { name: d.auteur, total: 0, count: 0 };
+    a.total += d[key];
+    a.count += 1;
+    by.set(d.auteur, a);
+  }
+  const ranked = [...by.values()].sort((a, b) => b.total - a.total);
+  const top = ranked.slice(0, n);
+  if (selected && !top.some((a) => a.name === selected)) {
+    const sel = by.get(selected);
+    if (sel) top.push(sel);
+  }
+  return top;
+}
+
+export function renderAuthorChips(el, authors, selected, unit) {
+  el.innerHTML = authors
+    .map((a) => `<button class="chip" aria-pressed="${a.name === selected}" data-a="${escapeHTML(a.name)}"
+      title="${a.count} titre${a.count > 1 ? "s" : ""} · ${fmt(a.total)} ${unit}">${escapeHTML(a.name)}<span class="n">${fmt(a.total)}</span></button>`)
+    .join("");
+}
+
+// Clicking a chip selects that author; clicking the selected one clears it.
+export function onAuthorClick(el, state, render) {
+  el.addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    state.author = state.author === b.dataset.a ? null : b.dataset.a;
+    render();
+  });
+}

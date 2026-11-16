@@ -99,6 +99,9 @@ h2 { font-size: 1.5rem; }
   cursor: pointer;
 }
 .chip[aria-pressed="true"] { border-color: var(--ink); color: var(--ink); font-weight: 600; }
+.chip .n { color: var(--ink-3); font-size: .78rem; font-weight: 400; font-variant-numeric: tabular-nums; }
+.controls.authors { margin-top: -6px; }
+.controls.authors > .muted { flex: none; }
 .swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: none; }
 input[type="search"], select {
   font: inherit; font-size: .9rem;

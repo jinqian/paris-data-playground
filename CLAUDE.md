@@ -5,8 +5,8 @@ A static GitHub Pages site with two dataviz pages built on Paris open data about
 ## Layout
 
 - `index.html`: home page, with links to the two dataviz pages and a few computed insights
-- `reservations.html`: horizontal bar chart of the most reserved titles (filter chips, search, top N)
-- `prets.html`: scatter of loans against copies, with a dashed median loans-per-copy line and a "champions" side list
+- `reservations.html`: horizontal bar chart of the most reserved titles (format chips, top-authors chips, search, top N)
+- `prets.html`: scatter of loans against copies, with a dashed median loans-per-copy line, top-authors chips and a "champions" side list
 - `assets/style.css`: all shared styles. Colours are CSS tokens on `:root`, with a separate dark-mode set
 - `assets/common.js`: shared ES-module helpers (data loading, colours, number formatting, theme/resize re-render)
 - `data/*.json`: cleaned snapshots, generated, do not hand-edit
@@ -20,6 +20,7 @@ A static GitHub Pages site with two dataviz pages built on Paris open data about
 - Each format family keeps one colour on every page (`FAMILY_TOKEN` in `common.js`): Livres = blue, BD & manga = orange, Films/Jeux = aqua, Autre = grey. Don't add more than three coloured families; fold the rest into grey.
 - Charts read colours from CSS tokens at render time and re-render when the theme changes, so never hard-code hex values in the chart code.
 - Theme: it follows the OS by default. The header button (`#theme-toggle`, wired up in `common.js`) sets `data-theme` on `<html>` and saves the choice in `localStorage`. A small inline script in each page's `<head>` re-applies the saved theme before first paint, so new pages need that script and the button too. Charts re-render through `onThemeChange`.
+- Top-authors chips (`topAuthors` / `renderAuthorChips` / `onAuthorClick` in `common.js`) rank the top 10 authors within the current format filter. Clicking a chip filters the chart, and clicking it again clears the filter. Duplicate author spellings are merged by `AUTHOR_ALIASES` in `fetch_data.py`, so add new ones there.
 - Every chart has hover tooltips and a "Voir les données en tableau" table fallback.
 - Data cleaning (encoding fixes like `Oda, Eiichir?`, "Last, First" → "First Last", dropping the ": roman" suffix, family grouping) lives in `fetch_data.py`, not in the pages.
 - If you add a new page, also add it to the `cp` line in `deploy.yml` and to the nav in each page header.

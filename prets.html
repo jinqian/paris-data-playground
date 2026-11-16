@@ -52,6 +52,11 @@
       <input type="search" id="q" placeholder="Surligner un titre ou auteur…" aria-label="Surligner un titre ou un auteur">
     </div>
 
+    <div class="controls authors">
+      <span class="muted">Top auteurs</span>
+      <div class="chips" id="authors" role="group" aria-label="Filtrer par auteur"></div>
+    </div>
+
     <div class="layout">
       <div class="card">
         <div class="legend" id="legend"></div>
@@ -81,12 +86,12 @@
   </footer>
 
   <script type="module">
-    import { PLOT_URL, loadJSON, css, familyColor, fmt, norm, legend, escapeHTML, onThemeChange, onResize } from "./assets/common.js";
+    import { PLOT_URL, loadJSON, css, familyColor, fmt, norm, legend, escapeHTML, onThemeChange, onResize, topAuthors, renderAuthorChips, onAuthorClick } from "./assets/common.js";
     const Plot = await import(PLOT_URL);
 
     const data = (await loadJSON("data/prets.json")).filter((d) => d.exemplaires > 0);
     const FAMILIES = ["Livres", "BD & manga", "Jeux, musique & autres"];
-    const state = { family: "Tous", q: "" };
+    const state = { family: "Tous", q: "", author: null };
 
     // Reference rate: the median loans-per-copy across the whole list.
     const ratios = data.map((d) => d.prets / d.exemplaires).sort((a, b) => a - b);
@@ -101,6 +106,8 @@
       state.family = b.dataset.f;
       render();
     });
+    const authorsEl = document.getElementById("authors");
+    onAuthorClick(authorsEl, state, render);
     document.getElementById("q").addEventListener("input", (e) => { state.q = norm(e.target.value); render(); });
 
     const matches = (d) => state.q && (norm(d.titre).includes(state.q) || norm(d.auteur).includes(state.q));
@@ -112,7 +119,11 @@
       }).join("");
       legend(document.getElementById("legend"), FAMILIES);
 
-      const rows = data.filter((d) => state.family === "Tous" || d.famille === state.family);
+      // Top authors by loans, within the current format filter.
+      const pool = data.filter((d) => state.family === "Tous" || d.famille === state.family);
+      if (state.author && !pool.some((d) => d.auteur === state.author)) state.author = null;
+      renderAuthorChips(authorsEl, topAuthors(pool, "prets", 10, state.author), state.author, "prêts");
+      const rows = state.author ? pool.filter((d) => d.auteur === state.author) : pool;
       const hits = rows.filter(matches);
       const width = chartEl.clientWidth;
       const narrow = width < 560;

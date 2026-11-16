@@ -21,6 +21,15 @@ FIXES = {
     "Compartiment n?6": "Compartiment n°6",
 }
 
+# Same author spelled differently across rows (applied after "First Last").
+AUTHOR_ALIASES = {
+    "Tan": "Mr Tan",
+    "Kohei Horikoshi": "Kōhei Horikoshi",
+    "T.T. Sutherland": "T. T. Sutherland",
+    "Dugomier": "Vincent Dugomier",
+    "Cazenove": "Christophe Cazenove",
+}
+
 
 def fetch(dataset):
     with urllib.request.urlopen(API.format(dataset), timeout=60) as resp:
@@ -41,8 +50,8 @@ def author_name(raw):
         return None
     if "," in s:
         last, first = (p.strip() for p in s.split(",", 1))
-        return f"{first} {last}" if first else last
-    return s
+        s = f"{first} {last}" if first else last
+    return AUTHOR_ALIASES.get(s, s)
 
 
 def title(raw):
