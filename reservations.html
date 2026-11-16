@@ -45,10 +45,7 @@
       </label>
     </div>
 
-    <div class="controls authors">
-      <span class="muted">Top auteurs</span>
-      <div class="chips" id="authors" role="group" aria-label="Filtrer par auteur"></div>
-    </div>
+    <div id="authors"></div>
 
     <div class="card">
       <div class="legend" id="legend"></div>
@@ -72,7 +69,7 @@
   </footer>
 
   <script type="module">
-    import { PLOT_URL, loadJSON, css, familyColor, fmt, norm, legend, escapeHTML, onThemeChange, onResize, topAuthors, renderAuthorChips, onAuthorClick } from "./assets/common.js";
+    import { PLOT_URL, loadJSON, css, familyColor, fmt, norm, legend, escapeHTML, onThemeChange, onResize, authorFilter } from "./assets/common.js";
     const Plot = await import(PLOT_URL);
 
     const data = await loadJSON("data/reserves.json");
@@ -96,8 +93,7 @@
       state.family = b.dataset.f;
       render();
     });
-    const authorsEl = document.getElementById("authors");
-    onAuthorClick(authorsEl, state, render);
+    const updateAuthors = authorFilter(document.getElementById("authors"), { key: "reservations", unit: "réservations", state, render: () => render() });
     document.getElementById("q").addEventListener("input", (e) => { state.q = norm(e.target.value); render(); });
     document.getElementById("n").addEventListener("change", (e) => { state.n = +e.target.value; render(); });
 
@@ -114,8 +110,7 @@
 
       // Top authors by reservations, within the current format filter.
       const pool = data.filter((d) => state.family === "Tous" || d.famille === state.family);
-      if (state.author && !pool.some((d) => d.auteur === state.author)) state.author = null;
-      renderAuthorChips(authorsEl, topAuthors(pool, "reservations", 10, state.author), state.author, "réservations");
+      updateAuthors(pool);
 
       const all = filtered();
       const rows = all.slice(0, state.n);

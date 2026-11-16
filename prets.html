@@ -52,10 +52,7 @@
       <input type="search" id="q" placeholder="Surligner un titre ou auteur…" aria-label="Surligner un titre ou un auteur">
     </div>
 
-    <div class="controls authors">
-      <span class="muted">Top auteurs</span>
-      <div class="chips" id="authors" role="group" aria-label="Filtrer par auteur"></div>
-    </div>
+    <div id="authors"></div>
 
     <div class="layout">
       <div class="card">
@@ -86,7 +83,7 @@
   </footer>
 
   <script type="module">
-    import { PLOT_URL, loadJSON, css, familyColor, fmt, norm, legend, escapeHTML, onThemeChange, onResize, topAuthors, renderAuthorChips, onAuthorClick } from "./assets/common.js";
+    import { PLOT_URL, loadJSON, css, familyColor, fmt, norm, legend, escapeHTML, onThemeChange, onResize, authorFilter } from "./assets/common.js";
     const Plot = await import(PLOT_URL);
 
     const data = (await loadJSON("data/prets.json")).filter((d) => d.exemplaires > 0);
@@ -106,8 +103,7 @@
       state.family = b.dataset.f;
       render();
     });
-    const authorsEl = document.getElementById("authors");
-    onAuthorClick(authorsEl, state, render);
+    const updateAuthors = authorFilter(document.getElementById("authors"), { key: "prets", unit: "prêts", state, render: () => render() });
     document.getElementById("q").addEventListener("input", (e) => { state.q = norm(e.target.value); render(); });
 
     const matches = (d) => state.q && (norm(d.titre).includes(state.q) || norm(d.auteur).includes(state.q));
@@ -121,8 +117,7 @@
 
       // Top authors by loans, within the current format filter.
       const pool = data.filter((d) => state.family === "Tous" || d.famille === state.family);
-      if (state.author && !pool.some((d) => d.auteur === state.author)) state.author = null;
-      renderAuthorChips(authorsEl, topAuthors(pool, "prets", 10, state.author), state.author, "prêts");
+      updateAuthors(pool);
       const rows = state.author ? pool.filter((d) => d.auteur === state.author) : pool;
       const hits = rows.filter(matches);
       const width = chartEl.clientWidth;

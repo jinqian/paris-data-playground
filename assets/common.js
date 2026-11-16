@@ -84,9 +84,12 @@ export function legend(el, families) {
 export const escapeHTML = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-// ---- Top authors filter (shared by both dataviz pages).
-// Authors ranked by the sum of `key` over `rows`; the selected author stays listed.
-export function topAuthors(rows, key, n = 10, selected = null) {
+// ---- Author filter (shared by both dataviz pages).
+// Top-10 chips plus a "Tous les auteurs" panel listing every author, searchable
+// and sortable. Clicking an author sets state.author (click again to clear).
+
+// Every author in `rows`, with the sum of `key` and their number of titles.
+export function rankAuthors(rows, key) {
   const by = new Map();
   for (const d of rows) {
     if (!d.auteur) continue;
@@ -95,28 +98,80 @@ export function topAuthors(rows, key, n = 10, selected = null) {
     a.count += 1;
     by.set(d.auteur, a);
   }
-  const ranked = [...by.values()].sort((a, b) => b.total - a.total);
-  const top = ranked.slice(0, n);
-  if (selected && !top.some((a) => a.name === selected)) {
-    const sel = by.get(selected);
-    if (sel) top.push(sel);
+  return [...by.values()].sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, "fr"));
+}
+
+const collator = new Intl.Collator("fr", { sensitivity: "base" });
+
+export function authorFilter(el, { key, unit, state, render, top = 10 }) {
+  el.innerHTML = `
+    <div class="controls authors">
+      <span class="muted">Top auteurs</span>
+      <div class="chips" data-top role="group" aria-label="Filtrer par auteur"></div>
+      <button type="button" class="more" data-toggle aria-expanded="false" aria-controls="${el.id}-panel"></button>
+    </div>
+    <div class="author-browser" id="${el.id}-panel" data-panel hidden>
+      <div class="ab-tools">
+        <input type="search" data-q placeholder="Chercher un auteur…" aria-label="Chercher un auteur">
+        <div class="chips" role="group" aria-label="Trier les auteurs">
+          <button type="button" class="chip" data-sort="total">Les plus populaires</button>
+          <button type="button" class="chip" data-sort="alpha">A → Z</button>
+        </div>
+        <span class="muted" data-count></span>
+      </div>
+      <ol class="ab-list" data-list></ol>
+    </div>`;
+  const $ = (sel) => el.querySelector(sel);
+  const ui = { all: [], q: "", sort: "total", open: false };
+
+  const chip = (a, rank) => `<button type="button" class="chip" aria-pressed="${a.name === state.author}" data-a="${escapeHTML(a.name)}"
+      title="${a.count} titre${a.count > 1 ? "s" : ""} · ${fmt(a.total)} ${unit}">${rank ? `<span class="n">${rank}.</span>` : ""}${escapeHTML(a.name)}<span class="n">${fmt(a.total)}</span></button>`;
+
+  function paintList() {
+    const shown = ui.all.map((a, i) => ({ ...a, rank: i + 1 }))
+      .filter((a) => !ui.q || norm(a.name).includes(ui.q));
+    if (ui.sort === "alpha") shown.sort((a, b) => collator.compare(a.name, b.name));
+    $("[data-list]").innerHTML = shown.length
+      ? shown.map((a) => `<li>${chip(a, ui.sort === "total" ? a.rank : 0).replace('class="chip"', 'class="chip ab-item"')}
+          <span class="ab-meta">${a.count} titre${a.count > 1 ? "s" : ""}</span></li>`).join("")
+      : `<li class="muted">Aucun auteur ne correspond.</li>`;
+    $("[data-count]").textContent = ui.q ? `${shown.length} / ${ui.all.length}` : "";
+    el.querySelectorAll("[data-sort]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.sort === ui.sort));
   }
-  return top;
-}
 
-export function renderAuthorChips(el, authors, selected, unit) {
-  el.innerHTML = authors
-    .map((a) => `<button class="chip" aria-pressed="${a.name === selected}" data-a="${escapeHTML(a.name)}"
-      title="${a.count} titre${a.count > 1 ? "s" : ""} · ${fmt(a.total)} ${unit}">${escapeHTML(a.name)}<span class="n">${fmt(a.total)}</span></button>`)
-    .join("");
-}
+  function paint() {
+    const topList = ui.all.slice(0, top);
+    const sel = ui.all.find((a) => a.name === state.author);
+    if (sel && !topList.includes(sel)) topList.push(sel);
+    $("[data-top]").innerHTML = topList.map((a) => chip(a)).join("");
+    const t = $("[data-toggle]");
+    t.textContent = `${ui.open ? "Masquer" : "Tous les auteurs"} (${fmt(ui.all.length)}) ${ui.open ? "▴" : "▾"}`;
+    t.setAttribute("aria-expanded", ui.open);
+    $("[data-panel]").hidden = !ui.open;
+    if (ui.open) paintList();
+  }
 
-// Clicking a chip selects that author; clicking the selected one clears it.
-export function onAuthorClick(el, state, render) {
   el.addEventListener("click", (e) => {
     const b = e.target.closest("button");
     if (!b) return;
-    state.author = state.author === b.dataset.a ? null : b.dataset.a;
-    render();
+    if (b.dataset.a !== undefined) {
+      state.author = state.author === b.dataset.a ? null : b.dataset.a;
+      render();
+    } else if (b.dataset.toggle !== undefined) {
+      ui.open = !ui.open;
+      paint();
+      if (ui.open) $("[data-q]").focus();
+    } else if (b.dataset.sort) {
+      ui.sort = b.dataset.sort;
+      paintList();
+    }
   });
+  $("[data-q]").addEventListener("input", (e) => { ui.q = norm(e.target.value); paintList(); });
+
+  // Call from render() with the rows of the current format filter, before filtering by author.
+  return function update(pool) {
+    ui.all = rankAuthors(pool, key);
+    if (state.author && !ui.all.some((a) => a.name === state.author)) state.author = null;
+    paint();
+  };
 }
