@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Les plus empruntés</title>
+  <meta name="description" content="Les titres les plus prêtés dans les bibliothèques de Paris en 2022, rapportés au nombre d'exemplaires.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <script>try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+  <link rel="stylesheet" href="assets/style.css">
+  <style>
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 20px; align-items: start; }
+    @media (max-width: 860px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+    .podium ol { margin: 10px 0 0; padding-left: 22px; }
+    .podium li { margin: 0 0 10px; }
+    .podium li b { font-weight: 600; }
+    .podium li span { display: block; color: var(--ink-3); font-size: .85rem; }
+    .note { border-left: 3px solid var(--accent); padding: 4px 0 4px 12px; color: var(--ink-2); max-width: 70ch; margin: 18px 0 0; }
+  </style>
+</head>
+<body>
+  <header class="site-head">
+    <div class="wrap">
+      <a class="brand" href="./">Ce que lit Paris</a>
+      <nav>
+        <a href="reservations.html">Réservations</a>
+        <a href="prets.html" aria-current="page">Prêts</a>
+      </nav>
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Changer de thème"></button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <p class="kicker">Dataviz 2 · Les plus empruntés</p>
+      <h1>Popularité vs disponibilité</h1>
+      <p class="lede">
+        Un titre très prêté l'est-il parce qu'il plaît… ou parce qu'il y en a partout&nbsp;?
+        Chaque point est un titre&nbsp;: plus il est à droite, plus la Ville en possède d'exemplaires&nbsp;;
+        plus il est haut, plus il a été emprunté en 2022.
+      </p>
+      <p class="note">
+        Au-dessus de la ligne pointillée, un titre tourne plus vite que la moyenne de la liste&nbsp;:
+        chaque exemplaire part plus souvent. En dessous, il doit son rang surtout à son nombre d'exemplaires.
+      </p>
+    </section>
+
+    <div class="controls">
+      <div class="chips" id="chips" role="group" aria-label="Filtrer par format"></div>
+      <input type="search" id="q" placeholder="Surligner un titre ou auteur…" aria-label="Surligner un titre ou un auteur">
+    </div>
+
+    <div class="layout">
+      <div class="card">
+        <div class="legend" id="legend"></div>
+        <div class="chart" id="chart"></div>
+        <p class="muted">Taille du point&nbsp;: nombre de bibliothèques où le titre est présent.</p>
+      </div>
+      <aside class="card podium">
+        <h3>Champions de la rotation</h3>
+        <p class="muted" style="margin:4px 0 0">Prêts par exemplaire en 2022 (titres avec au moins 3 exemplaires).</p>
+        <ol id="podium"></ol>
+      </aside>
+    </div>
+
+    <details>
+      <summary>Voir les données en tableau</summary>
+      <div class="table-wrap"><table id="table"></table></div>
+    </details>
+  </main>
+
+  <footer class="site-foot">
+    <div class="wrap">
+      <p class="muted">
+        Source&nbsp;: <a href="https://opendata.paris.fr/explore/dataset/les-titres-les-plus-pretes/information/">Les titres les plus prêtés dans les bibliothèques de prêt</a>,
+        Paris Data, 2022. Comme le rappelle le jeu de données, les titres jeunesse sont présents en très grand nombre d'exemplaires, d'où leur domination.
+      </p>
+    </div>
+  </footer>
+
+  <script type="module">
+    import { PLOT_URL, loadJSON, css, familyColor, fmt, norm, legend, escapeHTML, onThemeChange, onResize } from "./assets/common.js";
+    const Plot = await import(PLOT_URL);
+
+    const data = (await loadJSON("data/prets.json")).filter((d) => d.exemplaires > 0);
+    const FAMILIES = ["Livres", "BD & manga", "Jeux, musique & autres"];
+    const state = { family: "Tous", q: "" };
+
+    // Reference rate: the median loans-per-copy across the whole list.
+    const ratios = data.map((d) => d.prets / d.exemplaires).sort((a, b) => a - b);
+    const median = ratios[Math.floor(ratios.length / 2)];
+
+    const chartEl = document.getElementById("chart");
+    const chipsEl = document.getElementById("chips");
+
+    chipsEl.addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      state.family = b.dataset.f;
+      render();
+    });
+    document.getElementById("q").addEventListener("input", (e) => { state.q = norm(e.target.value); render(); });
+
+    const matches = (d) => state.q && (norm(d.titre).includes(state.q) || norm(d.auteur).includes(state.q));
+
+    function render() {
+      chipsEl.innerHTML = ["Tous", ...FAMILIES].map((f) => {
+        const sw = f === "Tous" ? "" : `<i class="swatch" style="background:${familyColor(f)}"></i>`;
+        return `<button class="chip" aria-pressed="${state.family === f}" data-f="${escapeHTML(f)}">${sw}${escapeHTML(f)}</button>`;
+      }).join("");
+      legend(document.getElementById("legend"), FAMILIES);
+
+      const rows = data.filter((d) => state.family === "Tous" || d.famille === state.family);
+      const hits = rows.filter(matches);
+      const width = chartEl.clientWidth;
+      const narrow = width < 560;
+
+      // Selective direct labels: the searched titles, else a few standouts.
+      const standouts = state.q
+        ? hits.slice(0, 6)
+        : [
+            rows[0],
+            ...[...rows].sort((a, b) => b.prets_par_exemplaire - a.prets_par_exemplaire).slice(0, narrow ? 1 : 2),
+            ...[...rows].sort((a, b) => b.exemplaires - a.exemplaires).slice(0, 1),
+          ].filter((d, i, a) => d && a.indexOf(d) === i);
+      const short = (s) => (s.length > 26 ? s.slice(0, 25) + "…" : s);
+
+      const xMax = Math.max(...rows.map((d) => d.exemplaires), 10) * 1.05;
+      const yMin = Math.min(...rows.map((d) => d.prets)) * 0.92;
+      const yMax = Math.max(...rows.map((d) => d.prets)) * 1.05;
+
+      chartEl.replaceChildren(Plot.plot({
+        width,
+        height: narrow ? 420 : 540,
+        marginLeft: 52,
+        marginRight: 20,
+        marginBottom: 44,
+        clip: true,
+        style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: "12px", color: css("--ink-2"), background: "transparent" },
+        x: { domain: [0, xMax], label: "Nombre d'exemplaires →", grid: true },
+        y: { domain: [yMin, yMax], label: "↑ Prêts en 2022", grid: true, tickFormat: (d) => fmt(d) },
+        r: { domain: [1, 70], range: [2, 8] },
+        color: { domain: FAMILIES, range: FAMILIES.map(familyColor) },
+        marks: [
+          Plot.gridX({ stroke: css("--rule"), strokeOpacity: 1 }),
+          Plot.gridY({ stroke: css("--rule"), strokeOpacity: 1 }),
+          Plot.line([[0, 0], [xMax, xMax * median]], {
+            stroke: css("--ink-3"), strokeDasharray: "4 4", strokeWidth: 1.5,
+          }),
+          Plot.text([`- - - rythme médian de la liste : ${median.toFixed(1).replace(".", ",")} prêts / exemplaire`], {
+            frameAnchor: "top-left", dx: 8, dy: 8, textAnchor: "start", fill: css("--ink-2"),
+          }),
+          Plot.dot(rows, {
+            x: "exemplaires", y: "prets", r: "bibliotheques", fill: "famille",
+            fillOpacity: state.q ? 0.15 : 0.7,
+            stroke: css("--surface"), strokeWidth: 1,
+          }),
+          Plot.dot(hits, {
+            x: "exemplaires", y: "prets", r: "bibliotheques", fill: "famille",
+            stroke: css("--ink"), strokeWidth: 1.5,
+          }),
+          // Labels on the right half point left so they stay inside the frame.
+          ...[["start", 10, (d) => d.exemplaires < xMax * 0.6], ["end", -10, (d) => d.exemplaires >= xMax * 0.6]].map(([anchor, dx, keep]) =>
+            Plot.text(standouts.filter(keep), {
+              x: "exemplaires", y: "prets", text: (d) => short(d.titre),
+              dx, textAnchor: anchor, fill: css("--ink"), fontWeight: 600,
+              stroke: css("--surface"), strokeWidth: 4, paintOrder: "stroke",
+            })),
+          Plot.tip(rows, Plot.pointer({
+            x: "exemplaires", y: "prets",
+            fill: css("--surface"), stroke: css("--rule"),
+            title: (d) => [
+              d.titre,
+              d.auteur ? `${d.auteur}` : null,
+              `${d.type}`,
+              `${fmt(d.prets)} prêts · ${d.exemplaires} exemplaires`,
+              `${fmt(d.prets_par_exemplaire)} prêts par exemplaire`,
+              `présent dans ${d.bibliotheques} bibliothèques`,
+            ].filter(Boolean).join("\n"),
+          })),
+        ],
+      }));
+
+      document.getElementById("podium").innerHTML = [...rows]
+        .filter((d) => d.exemplaires >= 3)
+        .sort((a, b) => b.prets_par_exemplaire - a.prets_par_exemplaire)
+        .slice(0, 8)
+        .map((d) => `<li><b>${escapeHTML(d.titre)}</b><span>${fmt(d.prets_par_exemplaire)} prêts/ex. · ${escapeHTML(d.auteur ?? d.type)}</span></li>`)
+        .join("");
+
+      document.getElementById("table").innerHTML =
+        `<thead><tr><th>Titre</th><th>Auteur</th><th>Format</th><th class="num">Prêts</th><th class="num">Ex.</th><th class="num">Prêts/ex.</th><th class="num">Biblio.</th></tr></thead><tbody>` +
+        rows.map((d) => `<tr><td>${escapeHTML(d.titre)}</td><td>${escapeHTML(d.auteur ?? "—")}</td><td>${escapeHTML(d.type)}</td><td class="num">${fmt(d.prets)}</td><td class="num">${d.exemplaires}</td><td class="num">${fmt(d.prets_par_exemplaire)}</td><td class="num">${d.bibliotheques}</td></tr>`).join("") +
+        `</tbody>`;
+    }
+
+    render();
+    onThemeChange(render);
+    onResize(chartEl, render);
+  </script>
+</body>
+</html>

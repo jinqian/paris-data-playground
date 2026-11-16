@@ -1,0 +1,159 @@
+/* Shared styles for every page. Colours are tokens; dark mode is its own set. */
+:root {
+  color-scheme: light;
+  --bg: #f7f4ee;
+  --surface: #fcfcfb;
+  --ink: #1b1a17;
+  --ink-2: #52514e;
+  --ink-3: #8a877f;
+  --rule: #e2ddd2;
+  --accent: #b5452a;
+
+  /* Categorical series — fixed per family on every page. */
+  --livres: #2a78d6;
+  --bd: #eb6834;
+  --films: #1baf7a;
+  --autre: #b4b1a8;
+
+  --serif: "Fraunces", Georgia, serif;
+  --sans: "Inter", system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #141412;
+    --surface: #1a1a19;
+    --ink: #f0efec;
+    --ink-2: #c3c2b7;
+    --ink-3: #8f8d84;
+    --rule: #2e2d2a;
+    --accent: #e8805f;
+    --livres: #3987e5;
+    --bd: #d95926;
+    --films: #199e70;
+    --autre: #5e5c56;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #141412;
+  --surface: #1a1a19;
+  --ink: #f0efec;
+  --ink-2: #c3c2b7;
+  --ink-3: #8f8d84;
+  --rule: #2e2d2a;
+  --accent: #e8805f;
+  --livres: #3987e5;
+  --bd: #d95926;
+  --films: #199e70;
+  --autre: #5e5c56;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.55 var(--sans);
+}
+a { color: var(--accent); }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+
+/* Header */
+.site-head {
+  border-bottom: 1px solid var(--rule);
+  padding: 14px 0;
+}
+.site-head .wrap { display: flex; gap: 20px; align-items: baseline; flex-wrap: wrap; }
+.site-head .brand { font-family: var(--serif); font-weight: 600; font-size: 1.15rem; color: var(--ink); text-decoration: none; margin-right: auto; }
+.site-head nav a { color: var(--ink-2); text-decoration: none; font-size: .95rem; }
+.site-head nav a[aria-current="page"] { color: var(--ink); border-bottom: 2px solid var(--accent); }
+.site-head nav { display: flex; gap: 18px; }
+.theme-toggle {
+  display: inline-grid; place-items: center;
+  width: 34px; height: 34px; padding: 0; align-self: center;
+  border: 1px solid var(--rule); border-radius: 999px;
+  background: var(--surface); color: var(--ink-2); cursor: pointer;
+}
+.theme-toggle:hover { color: var(--ink); border-color: var(--ink-3); }
+.theme-toggle svg { width: 16px; height: 16px; }
+
+/* Type */
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; line-height: 1.15; margin: 0; }
+h1 { font-size: clamp(2rem, 5vw, 3.2rem); letter-spacing: -.01em; }
+h2 { font-size: 1.5rem; }
+.kicker { text-transform: uppercase; letter-spacing: .12em; font-size: .75rem; color: var(--accent); font-weight: 600; margin: 0 0 10px; }
+.lede { font-size: 1.15rem; color: var(--ink-2); max-width: 62ch; margin: 14px 0 0; }
+.muted { color: var(--ink-3); font-size: .875rem; }
+.hero { padding: 48px 0 28px; }
+
+/* Controls: one row above the chart */
+.controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin: 8px 0 18px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  font: inherit; font-size: .875rem;
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 12px; border-radius: 999px;
+  border: 1px solid var(--rule); background: var(--surface); color: var(--ink-2);
+  cursor: pointer;
+}
+.chip[aria-pressed="true"] { border-color: var(--ink); color: var(--ink); font-weight: 600; }
+.swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: none; }
+input[type="search"], select {
+  font: inherit; font-size: .9rem;
+  padding: 6px 10px; border-radius: 8px;
+  border: 1px solid var(--rule); background: var(--surface); color: var(--ink);
+}
+input[type="search"] { min-width: 0; width: 240px; max-width: 100%; }
+
+/* Chart card */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  padding: 20px;
+}
+.chart { width: 100%; overflow: hidden; }
+.chart svg { display: block; max-width: 100%; height: auto; overflow: visible; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .85rem; color: var(--ink-2); margin-bottom: 8px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+/* Plot's own tooltip uses these */
+[aria-label="tip"] { --plot-background: var(--surface); }
+
+/* Data table */
+details { margin-top: 22px; }
+summary { cursor: pointer; color: var(--ink-2); font-size: .95rem; }
+.table-wrap { max-height: 420px; overflow: auto; margin-top: 10px; border: 1px solid var(--rule); border-radius: 10px; }
+table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { position: sticky; top: 0; background: var(--surface); color: var(--ink-2); font-weight: 600; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Home cards */
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 10px 0 40px; }
+.viz-link {
+  display: flex; flex-direction: column; gap: 12px;
+  text-decoration: none; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 16px;
+  padding: 24px; transition: transform .15s ease, border-color .15s ease;
+}
+.viz-link:hover { transform: translateY(-2px); border-color: var(--ink-3); }
+.viz-link p { margin: 0; color: var(--ink-2); }
+.viz-link .go { color: var(--accent); font-weight: 600; margin-top: auto; }
+.stat { font-family: var(--serif); font-size: 2.6rem; line-height: 1; }
+.stat small { font-family: var(--sans); font-size: .9rem; color: var(--ink-3); margin-left: 6px; }
+
+.insights { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin: 22px 0 0; }
+.insight { border-top: 2px solid var(--ink); padding-top: 10px; }
+.insight b { display: block; font-family: var(--serif); font-size: 1.15rem; font-weight: 600; }
+.insight span { color: var(--ink-2); font-size: .92rem; }
+
+.site-foot { border-top: 1px solid var(--rule); margin-top: 48px; padding: 20px 0 40px; }
+.site-foot p { margin: 0; }
+
+@media (max-width: 560px) {
+  .hero { padding-top: 32px; }
+  .card { padding: 14px; }
+}

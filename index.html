@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ce que lit Paris</title>
+  <meta name="description" content="Les titres les plus réservés et les plus prêtés dans les bibliothèques de Paris, en graphiques.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <script>try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="site-head">
+    <div class="wrap">
+      <a class="brand" href="./">Ce que lit Paris</a>
+      <nav>
+        <a href="reservations.html">Réservations</a>
+        <a href="prets.html">Prêts</a>
+      </nav>
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Changer de thème"></button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <p class="kicker">Bibliothèques de la Ville de Paris · 2022</p>
+      <h1>Qu'est-ce qu'on lit<br>(et qu'est-ce qu'on attend) à Paris&nbsp;?</h1>
+      <p class="lede">
+        Deux jeux de données ouverts, deux façons de regarder les bibliothèques parisiennes&nbsp;:
+        les titres pour lesquels on fait la queue, et ceux qui passent le plus de mains en main.
+      </p>
+    </section>
+
+    <div class="grid">
+      <a class="viz-link" href="reservations.html">
+        <p class="kicker">Dataviz 1 · La liste d'attente</p>
+        <h2>Les 1000 titres les plus réservés</h2>
+        <div class="stat" id="stat-res">—</div>
+        <p id="stat-res-label">réservations pour le n°1</p>
+        <span class="go">Voir le classement →</span>
+      </a>
+      <a class="viz-link" href="prets.html">
+        <p class="kicker">Dataviz 2 · Les plus empruntés</p>
+        <h2>Popularité vs disponibilité</h2>
+        <div class="stat" id="stat-pret">—</div>
+        <p id="stat-pret-label">prêts pour le titre le plus emprunté</p>
+        <span class="go">Explorer le nuage →</span>
+      </a>
+    </div>
+
+    <h2>En bref</h2>
+    <div class="insights" id="insights"></div>
+  </main>
+
+  <footer class="site-foot">
+    <div class="wrap">
+      <p class="muted">
+        Données&nbsp;: <a href="https://opendata.paris.fr/explore/dataset/les-1000-titres-les-plus-reserves-dans-les-bibliotheques-de-pret/information/">Les 1000 titres les plus réservés</a>
+        et <a href="https://opendata.paris.fr/explore/dataset/les-titres-les-plus-pretes/information/">Les titres les plus prêtés</a>,
+        Paris Data (licence ODbL). Un petit projet pour notre club de lecture.
+      </p>
+    </div>
+  </footer>
+
+  <script type="module">
+    import { loadJSON, fmt, escapeHTML } from "./assets/common.js";
+
+    const [res, prets] = await Promise.all([loadJSON("data/reserves.json"), loadJSON("data/prets.json")]);
+
+    const r1 = res[0], p1 = prets[0];
+    document.getElementById("stat-res").innerHTML = `${fmt(r1.reservations)}<small>résa</small>`;
+    document.getElementById("stat-res-label").innerHTML =
+      `pour <em>${escapeHTML(r1.titre)}</em> de ${escapeHTML(r1.auteur)}, n°1 de l'année.`;
+    document.getElementById("stat-pret").innerHTML = `${fmt(p1.prets)}<small>prêts</small>`;
+    document.getElementById("stat-pret-label").innerHTML =
+      `pour <em>${escapeHTML(p1.titre)}</em> (${escapeHTML(p1.auteur)}), avec ${p1.exemplaires} exemplaires en rayon.`;
+
+    // A few computed one-liners.
+    const share = (rows, f) => Math.round((100 * rows.filter((d) => d.famille === f).length) / rows.length);
+    const byAuthor = new Map();
+    for (const d of prets) if (d.auteur) byAuthor.set(d.auteur, (byAuthor.get(d.auteur) || 0) + 1);
+    const [topAuthor, topCount] = [...byAuthor].sort((a, b) => b[1] - a[1])[0];
+    const resTitles = new Set(res.map((d) => d.titre.toLowerCase()));
+    const both = prets.filter((d) => resTitles.has(d.titre.toLowerCase())).length;
+    const best = prets.filter((d) => d.exemplaires >= 3).sort((a, b) => b.prets_par_exemplaire - a.prets_par_exemplaire)[0];
+
+    const items = [
+      [`${share(prets, "BD & manga")}%`, "des titres les plus prêtés sont des BD ou des mangas."],
+      [`${topCount} titres`, `signés ${topAuthor} dans la liste des plus prêtés.`],
+      [`${both} titres`, "figurent à la fois parmi les plus réservés et les plus prêtés."],
+      [`${fmt(best.prets_par_exemplaire)} prêts / ex.`, `pour « ${best.titre} », champion de la rotation.`],
+    ];
+    document.getElementById("insights").innerHTML = items
+      .map(([b, s]) => `<div class="insight"><b>${escapeHTML(b)}</b><span>${escapeHTML(s)}</span></div>`)
+      .join("");
+  </script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Liste d'attente</title>
+  <meta name="description" content="Les titres les plus réservés dans les bibliothèques de Paris en 2022.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <script>try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="site-head">
+    <div class="wrap">
+      <a class="brand" href="./">Ce que lit Paris</a>
+      <nav>
+        <a href="reservations.html" aria-current="page">Réservations</a>
+        <a href="prets.html">Prêts</a>
+      </nav>
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Changer de thème"></button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <p class="kicker">Dataviz 1 · La liste d'attente</p>
+      <h1>Pour quoi fait-on la queue&nbsp;?</h1>
+      <p class="lede">
+        Les titres les plus réservés en 2022 dans les bibliothèques de prêt parisiennes.
+        Filtrez par format, cherchez un titre ou un auteur, survolez une barre pour le détail.
+      </p>
+    </section>
+
+    <div class="controls">
+      <div class="chips" id="chips" role="group" aria-label="Filtrer par format"></div>
+      <input type="search" id="q" placeholder="Titre ou auteur…" aria-label="Rechercher un titre ou un auteur">
+      <label class="muted">Afficher
+        <select id="n">
+          <option value="25">top 25</option>
+          <option value="50" selected>top 50</option>
+          <option value="100">top 100</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="card">
+      <div class="legend" id="legend"></div>
+      <div class="chart" id="chart" aria-live="polite"></div>
+      <p class="muted" id="caption"></p>
+    </div>
+
+    <details>
+      <summary>Voir les données en tableau</summary>
+      <div class="table-wrap"><table id="table"></table></div>
+    </details>
+  </main>
+
+  <footer class="site-foot">
+    <div class="wrap">
+      <p class="muted">
+        Source&nbsp;: <a href="https://opendata.paris.fr/explore/dataset/les-1000-titres-les-plus-reserves-dans-les-bibliotheques-de-pret/information/">Les 1000 titres les plus réservés dans les bibliothèques de prêt</a>,
+        Paris Data, 2022. Les formats « Nouveauté » et non renseignés sont regroupés en gris.
+      </p>
+    </div>
+  </footer>
+
+  <script type="module">
+    import { PLOT_URL, loadJSON, css, familyColor, fmt, norm, legend, escapeHTML, onThemeChange, onResize } from "./assets/common.js";
+    const Plot = await import(PLOT_URL);
+
+    const data = await loadJSON("data/reserves.json");
+    const FAMILIES = ["Livres", "BD & manga", "Films & musique", "Autre / non précisé"];
+    const state = { family: "Tous", q: "", n: 50 };
+
+    const chartEl = document.getElementById("chart");
+    const chipsEl = document.getElementById("chips");
+
+    function renderChips() {
+      chipsEl.innerHTML = ["Tous", ...FAMILIES]
+        .map((f) => {
+          const sw = f === "Tous" ? "" : `<i class="swatch" style="background:${familyColor(f)}"></i>`;
+          return `<button class="chip" aria-pressed="${state.family === f}" data-f="${escapeHTML(f)}">${sw}${escapeHTML(f)}</button>`;
+        })
+        .join("");
+    }
+    chipsEl.addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      state.family = b.dataset.f;
+      render();
+    });
+    document.getElementById("q").addEventListener("input", (e) => { state.q = norm(e.target.value); render(); });
+    document.getElementById("n").addEventListener("change", (e) => { state.n = +e.target.value; render(); });
+
+    function filtered() {
+      return data.filter((d) =>
+        (state.family === "Tous" || d.famille === state.family) &&
+        (!state.q || norm(d.titre).includes(state.q) || norm(d.auteur).includes(state.q)));
+    }
+
+    function render() {
+      renderChips();
+      legend(document.getElementById("legend"), FAMILIES);
+
+      const all = filtered();
+      const rows = all.slice(0, state.n);
+      const width = chartEl.clientWidth;
+      const narrow = width < 560;
+      const maxChars = narrow ? 20 : 38;
+      const label = new Map(rows.map((d) => {
+        const t = d.titre.length > maxChars ? d.titre.slice(0, maxChars - 1) + "…" : d.titre;
+        return [d.rang, `${t}`];
+      }));
+
+      chartEl.replaceChildren();
+      if (!rows.length) {
+        chartEl.innerHTML = `<p class="muted">Aucun titre ne correspond.</p>`;
+      } else {
+        chartEl.append(Plot.plot({
+          width,
+          height: rows.length * 22 + 40,
+          marginLeft: narrow ? 150 : 270,
+          marginRight: 16,
+          style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: "12px", color: css("--ink-2"), background: "transparent" },
+          x: { axis: "top", grid: true, label: "Réservations →", labelAnchor: "left", tickFormat: (d) => fmt(d) },
+          y: { domain: rows.map((d) => d.rang), tickFormat: (r) => label.get(r), tickSize: 0, label: null },
+          color: { domain: FAMILIES, range: FAMILIES.map(familyColor) },
+          marks: [
+            Plot.gridX({ stroke: css("--rule"), strokeOpacity: 1 }),
+            Plot.barX(rows, {
+              x: "reservations", y: "rang", fill: "famille",
+              insetTop: 2, insetBottom: 2, rx: 3,
+              channels: { Titre: "titre", Auteur: "auteur", Format: "type", Rang: "rang" },
+              tip: {
+                format: { x: (d) => fmt(d), y: false, fill: false, Titre: true, Auteur: true, Format: true, Rang: (d) => `n°${d}` },
+                fill: css("--surface"), stroke: css("--rule"),
+              },
+            }),
+            Plot.ruleX([0], { stroke: css("--ink-3") }),
+          ],
+        }));
+      }
+
+      const tot = all.reduce((s, d) => s + d.reservations, 0);
+      document.getElementById("caption").textContent =
+        `${fmt(all.length)} titres correspondent (sur 1000), ${fmt(tot)} réservations au total. ${rows.length < all.length ? `Affichage des ${rows.length} premiers.` : ""}`;
+
+      document.getElementById("table").innerHTML =
+        `<thead><tr><th class="num">Rang</th><th>Titre</th><th>Auteur</th><th>Format</th><th class="num">Réservations</th></tr></thead><tbody>` +
+        all.map((d) => `<tr><td class="num">${d.rang}</td><td>${escapeHTML(d.titre)}</td><td>${escapeHTML(d.auteur ?? "—")}</td><td>${escapeHTML(d.type)}</td><td class="num">${fmt(d.reservations)}</td></tr>`).join("") +
+        `</tbody>`;
+    }
+
+    render();
+    onThemeChange(render);
+    onResize(chartEl, render);
+  </script>
+</body>
+</html>
