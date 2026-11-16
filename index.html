@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <script>try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
-  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/style.css?v=dev">
 </head>
 <body>
   <header class="site-head">
@@ -65,9 +65,9 @@
   </footer>
 
   <script type="module">
-    import { loadJSON, fmt, escapeHTML } from "./assets/common.js";
+    import { loadJSON, fmt, escapeHTML } from "./assets/common.js?v=dev";
 
-    const [res, prets] = await Promise.all([loadJSON("data/reserves.json"), loadJSON("data/prets.json")]);
+    const [res, prets] = await Promise.all([loadJSON("data/reserves.json?v=dev"), loadJSON("data/prets.json?v=dev")]);
 
     const r1 = res[0], p1 = prets[0];
     document.getElementById("stat-res").innerHTML = `${fmt(r1.reservations)}<small>résa</small>`;

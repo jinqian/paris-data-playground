@@ -23,6 +23,7 @@ A static GitHub Pages site with two dataviz pages built on Paris open data about
 - Author filter: `authorFilter()` in `common.js` renders the top-10 chips plus a "Tous les auteurs" panel listing every author, with search and sorting by popularity or A→Z. Each page calls the returned `update(pool)` in `render()` with the format-filtered rows, and filters by `state.author`. Clicking an author selects it, and clicking again clears it. Duplicate author spellings are merged by `AUTHOR_ALIASES` in `fetch_data.py`, so add new ones there.
 - Every chart has hover tooltips and a "Voir les données en tableau" table fallback.
 - Data cleaning (encoding fixes like `Oda, Eiichir?`, "Last, First" → "First Last", dropping the ": roman" suffix, family grouping) lives in `fetch_data.py`, not in the pages.
+- Local asset URLs in the pages (`style.css`, `common.js`, `data/*.json`) end in `?v=dev`. The deploy workflow replaces this with the commit SHA so browsers never mix a new page with a stale cached script, since Pages caches for 10 minutes. Keep the suffix on any new asset reference.
 - If you add a new page, also add it to the `cp` line in `deploy.yml` and to the nav in each page header.
 
 ## Local preview

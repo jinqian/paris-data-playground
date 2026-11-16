@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <script>try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
-  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/style.css?v=dev">
   <style>
     .layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 20px; align-items: start; }
     @media (max-width: 860px) { .layout { grid-template-columns: minmax(0, 1fr); } }
@@ -83,10 +83,10 @@
   </footer>
 
   <script type="module">
-    import { PLOT_URL, loadJSON, css, familyColor, fmt, norm, legend, escapeHTML, onThemeChange, onResize, authorFilter } from "./assets/common.js";
+    import { PLOT_URL, loadJSON, css, familyColor, fmt, norm, legend, escapeHTML, onThemeChange, onResize, authorFilter } from "./assets/common.js?v=dev";
     const Plot = await import(PLOT_URL);
 
-    const data = (await loadJSON("data/prets.json")).filter((d) => d.exemplaires > 0);
+    const data = (await loadJSON("data/prets.json?v=dev")).filter((d) => d.exemplaires > 0);
     const FAMILIES = ["Livres", "BD & manga", "Jeux, musique & autres"];
     const state = { family: "Tous", q: "", author: null };
 
